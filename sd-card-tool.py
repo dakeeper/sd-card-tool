@@ -686,17 +686,16 @@ def clone_card():
         size_match = re.search(r'(\d+\.?\d*)', source_drive['size'])
         total_bytes = int(float(size_match.group(1)) * 1024 * 1024 * 1024) if size_match else 0
         
-        cmd = f"dd if={source_drive['device']} of={dest_drive['device']} bs=4M status=progress"
-        process = subprocess.Popen(cmd, shell=True, stderr=subprocess.STDOUT, stdout=subprocess.PIPE)
+        print(f"\n{Colors.CYAN}Starting clone... (Progress will show below){Colors.ENDC}\n")
         
-        display_progress(process, total_bytes, float(size_match.group(1)) if size_match else 1.0)
+        cmd = f"pv -s {total_bytes} -p -t -e -b -r {source_drive['device']} > {dest_drive['device']}"
+        result = subprocess.run(cmd, shell=True)
         
-        process.wait()
         print()
         
         elapsed = time.time() - start_time
         
-        if process.returncode == 0:
+        if result.returncode == 0:
             print(f"\n{Colors.GREEN}✓ CLONE COMPLETED SUCCESSFULLY!{Colors.ENDC}")
             print(f"{Colors.GRAY}{'─' * 50}{Colors.ENDC}")
             print(f"  Source:      {source_drive['device']} ({source_drive['size']})")
@@ -803,11 +802,11 @@ def mass_clone():
         
         processes = []
         for d in dest_drives:
-            cmd = f"dd if={source_drive['device']} of={d['device']} bs=4M conv=fdatasync"
+            cmd = f"pv -s {total_bytes} -p -t -e -b -r {source_drive['device']} > {d['device']}"
             proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             processes.append((d, proc, 0))
         
-        print(f"\n{Colors.CYAN}Cloning to {len(dest_drives)} drives in parallel...{Colors.ENDC}\n")
+        print(f"\n{Colors.CYAN}Cloning to {len(dest_drives)} drives in parallel... (Progress will show below){Colors.ENDC}\n")
         
         completed = 0
         while completed < len(dest_drives):
@@ -822,7 +821,9 @@ def mass_clone():
                 if done:
                     progress_info.append(f"{d['device']}: Done")
                 else:
-                    progress_info.append(f"{d['device']}: In progress...")
+                    progress_info.append(f"{d['device']}: ...")
+            
+            print(f"\r{Colors.CYAN}{' | '.join(progress_info)}{Colors.ENDC}", end='', flush=True)
             
             print(f"\r{Colors.CYAN}{' | '.join(progress_info)}{Colors.ENDC}", end='', flush=True)
         
