@@ -16,18 +16,42 @@ A menu-driven utility for backing up, restoring, formatting, and cloning SD card
 - Root privileges (sudo)
 - `pv` package (for progress display)
 
-## Installation
+## Installation Step by Step
+
+### Step 1: Install Dependencies
 
 ```bash
-# Install pv if not present
+# Update package list
+sudo apt update
+
+# Install pv (pipe viewer for progress display)
 sudo apt install pv
+```
 
-# Download the tool
+### Step 2: Download the Tool
+
+```bash
+# Create a directory for the tool
+mkdir -p ~/sd-card-tool
+cd ~/sd-card-tool
+
+# Download the tool from GitHub
 wget https://github.com/dakeeper/sd-card-tool/raw/main/sd-card-tool.py
+```
 
-# Make executable
+### Step 3: Make Executable
+
+```bash
 chmod +x sd-card-tool.py
 ```
+
+### Step 4: Run the Tool
+
+```bash
+sudo python3 sd-card-tool.py
+```
+
+**Note:** The tool requires root privileges to access block devices (SD cards).
 
 ## Usage
 
@@ -51,9 +75,49 @@ The tool shows real-time progress with:
 - Transfer speed
 - Estimated time remaining
 
+## Example Workflow
+
+### Backup an SD Card
+
+1. Select option `1` for Backup
+2. Choose your SD card from the list
+3. Enter the output directory (press Enter for home)
+4. Enter a filename or use the default
+5. Confirm with `YES`
+6. Wait for the backup to complete
+
+### Restore an SD Card
+
+1. Select option `2` for Restore
+2. Enter the directory containing your image files
+3. Choose the image file to restore
+4. Choose the target SD card
+5. Confirm with `YES`
+6. Wait for the restore to complete
+
+## Troubleshooting
+
+### "Permission denied" error
+Make sure to run the tool with sudo:
+```bash
+sudo python3 sd-card-tool.py
+```
+
+### "No removable drives found"
+- Check if the SD card is properly inserted
+- Try reinserting the SD card reader
+- Use `lsblk` to verify the device is detected
+
+### "pv: command not found"
+Install pv:
+```bash
+sudo apt install pv
+```
+
 ## Notes
 
 - Always use sudo to ensure proper access to block devices
 - Be careful when selecting destination drives - all data will be overwritten
 - The tool automatically detects removable USB/SD card devices
 - Backups are saved as compressed `.img.gz` files to save space
+- Always unmount the SD card before removing it
