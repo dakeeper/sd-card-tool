@@ -8,6 +8,7 @@ A menu-driven utility for backing up, restoring, formatting, and cloning SD card
 - **Restore** - Write image files to SD cards
 - **Format** - Format SD cards with FAT32, ext4, or NTFS
 - **Clone** - Clone one SD card directly to another
+- **Mass Clone** - Clone one SD card to multiple SD cards simultaneously
 
 ## Requirements
 
@@ -65,7 +66,8 @@ sudo python3 sd-card-tool.py
 2. **Restore** - Write an image file to an SD card
 3. **Format** - Format an SD card (FAT32/ext4/NTFS)
 4. **Clone** - Clone one SD card to another
-5. **Exit** - Quit the application
+5. **Mass Clone** - Clone one SD card to multiple SD cards simultaneously
+6. **Exit** - Quit the application
 
 ### Progress Display
 
@@ -94,6 +96,16 @@ The tool shows real-time progress with:
 4. Choose the target SD card
 5. Confirm with `YES`
 6. Wait for the restore to complete
+
+### Mass Clone (Clone to Multiple SD Cards)
+
+1. Select option `5` for Mass Clone
+2. Choose the source SD card (the one to clone from)
+3. Add destination drives one by one (press `A` to add, repeat for each drive)
+4. When done adding drives, press `D` to start cloning
+5. Confirm with `YES`
+6. The tool will clone to all selected drives in parallel
+7. Progress is shown for each drive
 
 ## Troubleshooting
 
