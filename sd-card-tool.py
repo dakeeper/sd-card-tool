@@ -497,7 +497,7 @@ def backup_drive():
         
         print(f"\n{Colors.CYAN}Starting backup... (Progress will show below){Colors.ENDC}\n")
         
-        cmd = f"pv -s {total_bytes} -p -t -e -b -r {drive['device']} | gzip > {output_path}"
+        cmd = f"pv -f -s {total_bytes} -p -t -e -b -r {drive['device']} | gzip > {output_path}"
         result = subprocess.run(cmd, shell=True)
         
         elapsed = time.time() - start_time
@@ -553,8 +553,7 @@ def restore_image():
         print(f"{Colors.WARNING}Restore cancelled.{Colors.ENDC}")
         return
     
-    print(f"\n{Colors.GREEN}Starting restore...{Colors.ENDC}")
-    print(f"{Colors.GRAY}(This may take several minutes){Colors.ENDC}\n")
+    print(f"\n{Colors.GREEN}Starting restore... (Progress will show below){Colors.ENDC}\n")
     
     try:
         run_command(f"umount {drive['device']}* 2>/dev/null", capture=False, check=False)
@@ -565,20 +564,15 @@ def restore_image():
         total_bytes = int(float(size_match.group(1)) * 1024 * 1024 * 1024) if size_match else 0
         
         if image_file['name'].endswith('.gz'):
-            cmd = f"gzip -dc {image_file['path']} | dd of={drive['device']} bs=4M status=progress"
+            cmd = f"pv -f -s {total_bytes} {image_file['path']} | gzip -dc | pv -f -s {total_bytes} -p -t -e -b -r > {drive['device']}"
         else:
-            cmd = f"dd if={image_file['path']} of={drive['device']} bs=4M status=progress"
+            cmd = f"pv -f -s {total_bytes} -p -t -e -b -r {image_file['path']} > {drive['device']}"
         
-        process = subprocess.Popen(cmd, shell=True, stderr=subprocess.STDOUT, stdout=subprocess.PIPE)
-        
-        display_progress(process, total_bytes, float(size_match.group(1)) if size_match else 1.0)
-        
-        process.wait()
-        print()
+        result = subprocess.run(cmd, shell=True)
         
         elapsed = time.time() - start_time
         
-        if process.returncode == 0:
+        if result.returncode == 0:
             print(f"\n{Colors.GREEN}✓ RESTORE COMPLETED SUCCESSFULLY!{Colors.ENDC}")
             print(f"{Colors.GRAY}{'─' * 50}{Colors.ENDC}")
             print(f"  Source:      {image_file['path']}")
