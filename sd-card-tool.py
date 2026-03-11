@@ -710,13 +710,145 @@ def clone_card():
         print(f"{Colors.FAIL}Error: {e}{Colors.ENDC}")
 
 
+def mass_clone():
+    """Clone a drive to multiple SD cards simultaneously."""
+    print(f"\n{Colors.HEADER}{Colors.BOLD}=== MASS CLONE MODE ==={Colors.ENDC}")
+    
+    drives = get_removable_drives()
+    
+    if len(drives) < 2:
+        print(f"{Colors.FAIL}Need at least 2 removable drives for mass clone!{Colors.ENDC}")
+        print(f"{Colors.WARNING}Found: {len(drives)} drive(s){Colors.ENDC}")
+        return
+    
+    print(f"\n{Colors.CYAN}Select SOURCE drive (will be read from):{Colors.ENDC}")
+    source_drive = select_drive(drives, "Select source drive:")
+    
+    if not source_drive:
+        return
+    
+    remaining_drives = [d for d in drives if d['device'] != source_drive['device']]
+    
+    print(f"\n{Colors.GREEN}Selected source: {source_drive['device']} ({source_drive['size']}){Colors.ENDC}")
+    
+    print(f"\n{Colors.CYAN}Select DESTINATION drives (one at a time):{Colors.ENDC}")
+    print(f"{Colors.GRAY}Available drives:{Colors.ENDC}")
+    
+    dest_drives = []
+    while True:
+        available = [d for d in remaining_drives if d['device'] not in [x['device'] for x in dest_drives]]
+        
+        if not available:
+            print(f"{Colors.WARNING}No more drives available.{Colors.ENDC}")
+            break
+        
+        print(f"\n{Colors.GRAY}Currently selected: {len(dest_drives)} drive(s){Colors.ENDC}")
+        for i, d in enumerate(dest_drives, 1):
+            print(f"  [{i}] {d['device']} ({d['size']})")
+        
+        print(f"\n{Colors.GRAY}Available:{Colors.ENDC}")
+        for i, d in enumerate(available, 1):
+            print(f"  [{i}] {d['device']} ({d['size']}) - {d['model']}")
+        
+        print(f"\n{Colors.CYAN}[A]{Colors.ENDC} - Add another destination drive")
+        print(f"{Colors.CYAN}[D]{Colors.ENDC} - Done, start cloning")
+        print(f"{Colors.CYAN}[C]{Colors.ENDC} - Cancel")
+        
+        choice = input(f"\n{Colors.BOLD}Choice: {Colors.ENDC}").strip().upper()
+        
+        if choice == 'A':
+            print(f"\n{Colors.CYAN}Select drive to add:{Colors.ENDC}")
+            drive = select_drive(available, "Select destination:")
+            if drive:
+                dest_drives.append(drive)
+                print(f"{Colors.GREEN}Added: {drive['device']}{Colors.ENDC}")
+        elif choice == 'D':
+            break
+        elif choice == 'C':
+            print(f"{Colors.WARNING}Mass clone cancelled.{Colors.ENDC}")
+            return
+        else:
+            print(f"{Colors.FAIL}Invalid option.{Colors.ENDC}")
+    
+    if not dest_drives:
+        print(f"{Colors.WARNING}No destination drives selected.{Colors.ENDC}")
+        return
+    
+    print(f"\n{Colors.GREEN}Selected drives:{Colors.ENDC}")
+    print(f"  Source:      {source_drive['device']} ({source_drive['size']})")
+    print(f"  Destinations:")
+    for d in dest_drives:
+        print(f"    - {d['device']} ({d['size']})")
+    
+    if not confirm_action("MASS CLONE (ERASE ALL DESTINATIONS)", 
+                         source_drive['device'], 
+                         f"{len(dest_drives)} drives",
+                         [f"Source: {source_drive['size']}", f"Destinations: {len(dest_drives)}"]):
+        print(f"{Colors.WARNING}Mass clone cancelled.{Colors.ENDC}")
+        return
+    
+    print(f"\n{Colors.GREEN}Starting mass clone to {len(dest_drives)} drives...{Colors.ENDC}")
+    print(f"{Colors.WARNING}ALL DATA ON DESTINATION DRIVES WILL BE DESTROYED!{Colors.ENDC}")
+    print(f"{Colors.GRAY}(This may take several minutes){Colors.ENDC}\n")
+    
+    try:
+        run_command(f"umount {source_drive['device']}* 2>/dev/null", capture=False, check=False)
+        for d in dest_drives:
+            run_command(f"umount {d['device']}* 2>/dev/null", capture=False, check=False)
+        
+        start_time = time.time()
+        
+        size_match = re.search(r'(\d+\.?\d*)', source_drive['size'])
+        total_bytes = int(float(size_match.group(1)) * 1024 * 1024 * 1024) if size_match else 0
+        
+        processes = []
+        for d in dest_drives:
+            cmd = f"dd if={source_drive['device']} of={d['device']} bs=4M conv=fdatasync"
+            proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            processes.append((d, proc, 0))
+        
+        print(f"\n{Colors.CYAN}Cloning to {len(dest_drives)} drives in parallel...{Colors.ENDC}\n")
+        
+        completed = 0
+        while completed < len(dest_drives):
+            time.sleep(1)
+            for i, (d, proc, _) in enumerate(processes):
+                if proc.poll() is not None:
+                    completed += 1
+                    processes[i] = (d, proc, 1)
+            
+            progress_info = []
+            for d, proc, done in processes:
+                if done:
+                    progress_info.append(f"{d['device']}: Done")
+                else:
+                    progress_info.append(f"{d['device']}: In progress...")
+            
+            print(f"\r{Colors.CYAN}{' | '.join(progress_info)}{Colors.ENDC}", end='', flush=True)
+        
+        print(f"\n\n{Colors.GREEN}All clones completed!{Colors.ENDC}")
+        
+        elapsed = time.time() - start_time
+        
+        print(f"\n{Colors.GREEN}✓ MASS CLONE COMPLETED SUCCESSFULLY!{Colors.ENDC}")
+        print(f"{Colors.GRAY}{'─' * 50}{Colors.ENDC}")
+        print(f"  Source:      {source_drive['device']} ({source_drive['size']})")
+        print(f"  Destinations: {len(dest_drives)} drives")
+        print(f"  Time:        {int(elapsed//60)}:{int(elapsed%60):02d}")
+        print(f"{Colors.GRAY}{'─' * 50}{Colors.ENDC}")
+        
+    except Exception as e:
+        print(f"{Colors.FAIL}Error: {e}{Colors.ENDC}")
+
+
 def print_menu():
     """Print the main menu."""
     print(f"\n{Colors.CYAN}{Colors.BOLD}[1]{Colors.ENDC} Backup   - Create image from SD card")
     print(f"{Colors.CYAN}{Colors.BOLD}[2]{Colors.ENDC} Restore  - Write image to SD card")
     print(f"{Colors.CYAN}{Colors.BOLD}[3]{Colors.ENDC} Format   - Format SD card")
     print(f"{Colors.CYAN}{Colors.BOLD}[4]{Colors.ENDC} Clone    - Clone SD card to another SD card")
-    print(f"{Colors.FAIL}{Colors.BOLD}[5]{Colors.ENDC} Exit{Colors.ENDC}")
+    print(f"{Colors.CYAN}{Colors.BOLD}[5]{Colors.ENDC} Mass Clone - Clone to multiple SD cards")
+    print(f"{Colors.FAIL}{Colors.BOLD}[6]{Colors.ENDC} Exit{Colors.ENDC}")
 
 
 def main():
@@ -729,7 +861,7 @@ def main():
         print_header()
         print_menu()
         
-        choice = input(f"\n{Colors.BOLD}Select option [1-5]: {Colors.ENDC}").strip()
+        choice = input(f"\n{Colors.BOLD}Select option [1-6]: {Colors.ENDC}").strip()
         
         if choice == '1':
             backup_drive()
@@ -740,6 +872,8 @@ def main():
         elif choice == '4':
             clone_card()
         elif choice == '5':
+            mass_clone()
+        elif choice == '6':
             print(f"\n{Colors.GREEN}Goodbye!{Colors.ENDC}")
             break
         else:
